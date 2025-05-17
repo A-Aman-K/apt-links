@@ -1,0 +1,11 @@
+// Create this file at: aptlinks/app/src/main/res/mipmap-hdpi/ic_launcher.xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/primary"/>
+    <foreground>
+        <inset
+            android:drawable="@drawable/ic_launcher_foreground"
+            android:inset="20%"/>
+    </foreground>
+</adaptive-icon>

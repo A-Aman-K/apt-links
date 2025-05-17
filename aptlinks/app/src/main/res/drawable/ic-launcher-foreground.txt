@@ -1,0 +1,14 @@
+// Create this file at: aptlinks/app/src/main/res/drawable/ic_launcher_foreground.xml
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,40L72,40A4,4 0,0 1,76 44L76,64A4,4 0,0 1,72 68L36,68A4,4 0,0 1,32 64L32,44A4,4 0,0 1,36 40z"/>
+    <path
+        android:fillColor="#6200EE"
+        android:pathData="M42,46L42,62L48,62L48,55L60,55L60,62L66,62L66,46L42,46zM48,49L60,49L60,52L48,52L48,49z"/>
+</vector>
