@@ -30,6 +30,22 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    
+    // Add this section to ensure resource handling
+    sourceSets {
+        main {
+            res.srcDirs = [
+                'src/main/res',
+                'src/main/res/drawable',
+                'src/main/res/values',
+                'src/main/res/mipmap-mdpi',
+                'src/main/res/mipmap-hdpi',
+                'src/main/res/mipmap-xhdpi',
+                'src/main/res/mipmap-xxhdpi',
+                'src/main/res/mipmap-xxxhdpi'
+            ]
+        }
+    }
 }
 
 dependencies {
