@@ -2,9 +2,9 @@ name: Android Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -12,132 +12,62 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Locate project and fix directory structure
-      run: |
-        echo "Analyzing repository structure..."
-        
-        # First check if we're already in an Android project directory
-        if [ -f "build.gradle" ] && [ -d "app" ] && [ -f "app/build.gradle" ]; then
-          echo "Android project found in root directory"
-          PROJECT_DIR="."
-        elif [ -f "aptlinks/build.gradle" ] && [ -d "aptlinks/app" ] && [ -f "aptlinks/app/build.gradle" ]; then
-          echo "Android project found in aptlinks directory"
-          PROJECT_DIR="aptlinks"
-        else
-          # Try to locate the project directory by searching for key files
-          echo "Searching for Android project directory..."
-          
-          # Find all build.gradle files that could be the top-level one
-          BUILD_GRADLE_DIRS=$(find . -name "build.gradle" -not -path "*/app/*" -not -path "*/node_modules/*" | xargs dirname)
-          
-          for DIR in $BUILD_GRADLE_DIRS; do
-            if [ -d "$DIR/app" ] && [ -f "$DIR/app/build.gradle" ]; then
-              PROJECT_DIR="$DIR"
-              echo "Found Android project in $PROJECT_DIR"
-              break
-            fi
-          done
-        fi
-        
-        if [ -z "$PROJECT_DIR" ]; then
-          echo "ERROR: Could not find valid Android project directory"
-          echo "Repository contents:"
-          find . -type f -name "*.gradle" | sort
-          exit 1
-        fi
-        
-        # Save the project directory for other steps
-        echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-        
-        # Fix Gradle wrapper files if necessary
-        cd "$PROJECT_DIR"
-        
-        if [ ! -f "gradlew" ] || [ ! -d "gradle/wrapper" ] || [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-          echo "Fixing missing Gradle wrapper files..."
-          
-          # Create directory structure if it doesn't exist
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Find Android project
+        id: find-project
+        run: |
+          if [ -f "build.gradle" ] && [ -d "app" ] && [ -f "app/build.gradle" ]; then
+            echo "PROJECT_DIR=." >> $GITHUB_ENV
+            echo "Project found in root directory"
+          elif [ -f "aptlinks/build.gradle" ] && [ -d "aptlinks/app" ] && [ -f "aptlinks/app/build.gradle" ]; then
+            echo "PROJECT_DIR=aptlinks" >> $GITHUB_ENV
+            echo "Project found in aptlinks directory"
+          else
+            echo "PROJECT_DIR=aptlinks" >> $GITHUB_ENV
+            echo "Defaulting to aptlinks directory"
+          fi
+
+      - name: Setup Gradle wrapper
+        run: |
+          cd $PROJECT_DIR
           mkdir -p gradle/wrapper
           
-          # Create wrapper properties if it doesn't exist
-          if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-            echo "Creating gradle-wrapper.properties"
-            echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-            echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-            echo "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.1.1-all.zip" >> gradle/wrapper/gradle-wrapper.properties
-            echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
-            echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          fi
+          # Create wrapper properties
+          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.1.1-all.zip" >> gradle/wrapper/gradle-wrapper.properties
+          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
+          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
           
-          # Download the gradle-wrapper.jar
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Downloading gradle-wrapper.jar..."
-            curl -L -o "gradle/wrapper/gradle-wrapper.jar" "https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar"
-          fi
+          # Download wrapper jar
+          curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar
           
-          # Create the gradlew script for Unix if it doesn't exist
-          if [ ! -f "gradlew" ]; then
-            echo "Creating gradlew script"
-            
-            # First try to use existing script template if available
-            if [ -f "../aptlinks/gradlew_script.sh" ]; then
-              cp "../aptlinks/gradlew_script.sh" "./gradlew"
-            else
-              cat > gradlew << 'EOL'
-#!/usr/bin/env sh
+          # Create gradlew script
+          echo '#!/bin/sh' > gradlew
+          echo 'exec java -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain "$@"' >> gradlew
+          chmod +x gradlew
+          
+          # Create gradlew.bat
+          echo '@echo off' > gradlew.bat
+          echo 'java -classpath "%~dp0\gradle\wrapper\gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain %*' >> gradlew.bat
 
-# Gradle wrapper script
-exec java -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain "$@"
-EOL
-            fi
-            
-            chmod +x gradlew
-          fi
-          
-          # Create the Windows batch file if it doesn't exist
-          if [ ! -f "gradlew.bat" ]; then
-            echo "Creating gradlew.bat"
-            
-            # First try to use existing batch template if available
-            if [ -f "../aptlinks/gradlew_bat.txt" ]; then
-              cp "../aptlinks/gradlew_bat.txt" "./gradlew.bat"
-            else
-              cat > gradlew.bat << 'EOL'
-@echo off
-java -classpath "%~dp0\gradle\wrapper\gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain %*
-EOL
-            fi
-          fi
-          
-          echo "Gradle wrapper files created successfully"
-        else
-          echo "Gradle wrapper files already exist"
-        fi
+      - name: Build with Gradle
+        run: |
+          cd $PROJECT_DIR
+          ./gradlew assembleDebug --stacktrace
 
-    - name: Build Debug APK
-      run: |
-        cd $PROJECT_DIR
-        chmod +x gradlew
-        ./gradlew assembleDebug --stacktrace
-      
-    - name: List APK files
-      run: |
-        echo "Generated APK files:"
-        find $PROJECT_DIR -name "*.apk" || echo "No APK files found"
-        
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug-apk
-        path: "${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk"
-        retention-days: 7
-        if-no-files-found: warn
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: "${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk"
+          if-no-files-found: warn
